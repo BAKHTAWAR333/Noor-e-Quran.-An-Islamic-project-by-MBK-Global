@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://quran.fakcloud.tech/#organization",
+      "name": "Islamic Portal",
+      "url": "https://quran.fakcloud.tech/",
+      "logo": "https://quran.fakcloud.tech/logo.png"
+    },
+    {
+      "@type": "CollectionPage",
+      "@id": "https://quran.fakcloud.tech/hadith.html#webpage",
+      "url": "https://quran.fakcloud.tech/hadith.html",
+      "name": "Authentic Hadith Explorer",
+      "description": "Explore authentic Hadith collections including Sahih al-Bukhari, Sahih Muslim, and others.",
+      "isPartOf": {"@id": "https://quran.fakcloud.tech/#website"},
+      "mainEntity": {
+        "@type": "ItemList",
+        "name": "Authentic Hadith Books",
+        "itemListElement": [
+          {"@type": "Book", "name": "Sahih al-Bukhari", "position": 1},
+          {"@type": "Book", "name": "Sahih Muslim", "position": 2},
+          {"@type": "Book", "name": "Sunan an-Nasa'i", "position": 3},
+          {"@type": "Book", "name": "Sunan Abu Dawood", "position": 4}
+        ]
+      }
+    }
+  ]
+}
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic Portal - Unified Hadith Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #059669; border-radius: 4px; }
+
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+        
+        /* Custom Button Styles */
+        .btn-primary {
+            @apply bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 transition font-bold shadow-lg flex items-center justify-center disabled:bg-slate-400 disabled:cursor-not-allowed;
+        }
+        .btn-secondary {
+            @apply bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition font-semibold;
+        }
+        .control-input {
+            @apply border border-slate-300 rounded-lg px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white;
+        }
+        .card-bg {
+            @apply bg-white p-6 rounded-xl shadow-xl mb-6 border-t-4 border-emerald-500;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col pb-24">
+<div id="navbar-placeholder"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-20 right-5 z-[60] space-y-3"></div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 flex-grow">
+        
+        <div class="max-w-4xl mx-auto">
+            
+            <div class="text-center mb-10">
+                <h1 class="text-4xl font-extrabold text-emerald-800 mb-2">Hadith Explorer</h1>
+                <p class="text-slate-500 text-lg">Explore the authentic collections of Hadith step-by-step.</p>
+            </div>
+
+            <!-- Unified Content Area (Step-by-Step Flow) -->
+            <div id="content-area">
+                <!-- Content for the current step will be rendered here -->
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-slate-800 text-white py-6 mt-auto text-center">
+        <p class="text-sm">&copy; 2026 Islamic Portal</p>
+    </footer>
+<script src="navbar.js"></script>
+    <script>
+        const WORKER_URL = 'https://hdith-api.fakcloud.tech'; 
+        
+        // --- State Management ---
+        const STATE = {
+            STEP_BOOK_SELECT: 0,
+            STEP_CHAPTER_SELECT: 1,
+            STEP_HADITH_VIEW: 2,
+        };
+
+        let currentState = STATE.STEP_BOOK_SELECT;
+        let bookData = [];
+        let selectedBookSlug = '';
+        let selectedBookName = '';
+        let chapterData = [];
+        let selectedChapterNumber = '';
+        
+        let currentHadithPage = 1;
+        let totalHadithPages = 1;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderUI();
+            fetchBooks(); // Start by fetching the list of books
+        });
+
+        // --- UTILITIES ---
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = type === 'error' ? 'bg-red-500' : (type === 'info' ? 'bg-blue-500' : 'bg-emerald-600');
+            const icon = type === 'error' ? 'fa-exclamation-circle' : (type === 'info' ? 'fa-info-circle' : 'fa-check-circle');
+
+            toast.className = `${colors} text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 toast-enter pointer-events-auto`;
+            toast.innerHTML = `<i class="fas ${icon}"></i> <span class="font-medium">${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const icon = document.getElementById('menu-icon');
+            
+            menu.classList.toggle('hidden');
+            icon.classList.toggle('fa-times');
+            icon.classList.toggle('fa-bars');
+        }
+
+        // --- CORE RENDER ---
+        function renderUI() {
+            const area = document.getElementById('content-area');
+            let html = '';
+
+            if (currentState === STATE.STEP_BOOK_SELECT) {
+                html = renderBookSelection();
+            } else if (currentState === STATE.STEP_CHAPTER_SELECT) {
+                html = renderChapterSelection();
+            } else if (currentState === STATE.STEP_HADITH_VIEW) {
+                html = renderHadithView();
+            }
+
+            area.innerHTML = html;
+            attachEventHandlers(); // Re-attach handlers after rendering new HTML
+        }
+        
+        function attachEventHandlers() {
+            // Attach handlers for pagination buttons if in Hadith view
+            if (currentState === STATE.STEP_HADITH_VIEW) {
+                const loadMoreBtn = document.getElementById('load-more-btn');
+                if (loadMoreBtn) {
+                    loadMoreBtn.onclick = loadMoreHadiths;
+                }
+            }
+        }
+
+        // --- STEP 1: BOOK SELECTION ---
+        function renderBookSelection() {
+            return `
+                <div class="card-bg">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2 flex items-center gap-2"><i class="fas fa-book text-emerald-500"></i> Step 1: Choose a Book</h2>
+                    <div class="flex justify-end mb-3">
+                         <button onclick="fetchBooks()" class="btn-secondary !bg-red-100 !text-red-600 hover:!bg-red-200"><i class="fas fa-sync-alt mr-2"></i> Reload Books</button>
+                    </div>
+                    <p class="text-slate-500 mb-4">Loading ${bookData.length} Hadith Collections...</p>
+                    <div id="book-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
+                        ${bookData.length > 0 ? bookData.map(book => `
+                            <button data-slug="${book.bookSlug}" data-name="${book.bookName}" onclick="selectBook(this)" 
+                                class="text-left p-4 bg-slate-50 hover:bg-emerald-100 border-l-4 border-emerald-500 rounded-lg shadow transition">
+                                <h4 class="font-bold text-lg text-emerald-800">${book.bookName}</h4>
+                                <p class="text-xs text-slate-600">Chapters: ${book.chapters_count} | Hadiths: ${book.hadiths_count}</p>
+                            </button>
+                        `).join('') : '<p class="text-center text-slate-400 col-span-2 py-8">Could not load books. Check proxy connection.</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchBooks() {
+            const proxyUrl = `${WORKER_URL}/books`;
+            const listContainer = document.getElementById('book-list');
+            if (listContainer) {
+                listContainer.innerHTML = '<div class="text-center py-10 col-span-2"><i class="fas fa-spinner fa-spin text-3xl text-emerald-500"></i><p class="mt-2 text-slate-500">Fetching Book List...</p></div>';
+            }
+            
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const data = await response.json();
+                
+                if (data.books && Array.isArray(data.books)) {
+                    bookData = data.books;
+                    renderUI();
+                    showToast(`Loaded ${bookData.length} Hadith Books.`, "success");
+                } else {
+                    throw new Error("Invalid response format for /books.");
+                }
+            } catch (error) {
+                showToast(`Failed to fetch books: ${error.message}`, "error");
+                if(listContainer) listContainer.innerHTML = '<p class="text-center text-red-500 col-span-2 py-10">Failed to load books. Check console for details.</p>';
+            }
+        }
+
+        function selectBook(buttonElement) {
+            selectedBookSlug = buttonElement.getAttribute('data-slug');
+            selectedBookName = buttonElement.getAttribute('data-name');
+            showToast(`Selected Book: ${selectedBookName}. Loading chapters...`, "info");
+            
+            // Reset chapter data and move to the next state *before* fetching
+            chapterData = [];
+            currentState = STATE.STEP_CHAPTER_SELECT;
+            renderUI(); 
+            
+            fetchChapters(); // Trigger fetch
+        }
+
+        // --- STEP 2: CHAPTER SELECTION ---
+        function renderChapterSelection() {
+            const bookNameDisplay = selectedBookName || selectedBookSlug;
+
+            return `
+                <div class="card-bg">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fas fa-list-ol text-emerald-500"></i> Step 2: Chapters in ${bookNameDisplay}</h2>
+                    <div class="flex justify-between mb-4">
+                        <button onclick="currentState = STATE.STEP_BOOK_SELECT; renderUI();" class="btn-secondary"><i class="fas fa-arrow-left mr-2"></i> Back to Books</button>
+                        ${chapterData.length > 0 ? `<button onclick="fetchChapters()" class="btn-secondary !bg-red-100 !text-red-600 hover:!bg-red-200"><i class="fas fa-sync-alt mr-2"></i> Re-fetch</button>` : ''}
+                    </div>
+                    <p class="text-slate-500 mb-4">Select a chapter number to view Hadiths.</p>
+                    
+                    <div id="chapter-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[50vh] overflow-y-auto pr-2">
+                        ${chapterData.length > 0 ? chapterData.map(chapter => `
+                            <button data-num="${chapter.chapterNumber}" onclick="selectChapter(this)" 
+                                class="text-center p-3 bg-slate-50 hover:bg-blue-100 border-b-4 border-blue-400 rounded-lg shadow transition">
+                                <p class="font-bold text-md text-blue-700">Ch. ${chapter.chapterNumber}</p>
+                                <p class="text-xs text-slate-600 mt-1 truncate">${chapter.name || 'N/A'}</p>
+                                <p class="text-xs text-slate-500 mt-0.5">${chapter.hadiths_count} Hadiths</p>
+                            </button>
+                        `).join('') : '<p class="text-center text-slate-400 col-span-5 py-8">Loading chapters...</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchChapters() {
+            const proxyUrl = `${WORKER_URL}/${selectedBookSlug}/chapters`;
+            const listContainer = document.getElementById('chapter-list');
+            
+            if (listContainer) {
+                 listContainer.innerHTML = '<div class="text-center py-10 col-span-5"><i class="fas fa-spinner fa-spin text-3xl text-emerald-500"></i><p class="mt-2 text-slate-500">Fetching Chapters for ${selectedBookSlug}...</p></div>';
+            }
+            
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const data = await response.json();
+                
+                if (data.chapters && Array.isArray(data.chapters)) {
+                    chapterData = data.chapters.map(ch => ({
+                        name: ch.chapterEnglish || ch.chapterUrdu || ch.chapterArabic || 'Unnamed Chapter', 
+                        hadiths_count: ch.hadiths_count || '?', 
+                        chapterNumber: ch.chapterNumber
+                    }));
+                    
+                    currentState = STATE.STEP_CHAPTER_SELECT;
+                    renderUI(); 
+                    showToast(`Loaded ${chapterData.length} Chapters.`, "success");
+                } else {
+                    throw new Error("Invalid response format for /chapters.");
+                }
+            } catch (error) {
+                showToast(`Failed to fetch chapters: ${error.message}`, "error");
+                if(listContainer) listContainer.innerHTML = `<p class="text-center text-red-500 col-span-5 py-10">Failed to load chapters for ${selectedBookSlug}.</p>`;
+            }
+        }
+
+        function selectChapter(buttonElement) {
+            selectedChapterNumber = buttonElement.getAttribute('data-num');
+            showToast(`Chapter ${selectedChapterNumber} selected. Fetching Hadiths...`, "info");
+            
+            // Reset pagination state and move to view state
+            currentHadithPage = 1;
+            totalHadithPages = 1;
+            currentState = STATE.STEP_HADITH_VIEW; 
+            renderUI(); 
+            
+            fetchHadiths(true); // Trigger fetch for page 1
+        }
+
+        // --- STEP 3: HADITH DISPLAY ---
+        function renderHadithView() {
+            const bookNameDisplay = selectedBookName || selectedBookSlug;
+            const currentChapter = chapterData.find(c => c.chapterNumber === selectedChapterNumber);
+            const chapterNameDisplay = currentChapter ? `${currentChapter.name} (Ch. ${selectedChapterNumber})` : `Chapter ${selectedChapterNumber}`;
+            
+            return `
+                <div class="card-bg">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fas fa-quran text-emerald-500"></i> Step 3: Hadiths from ${bookNameDisplay}</h2>
+                    
+                    <div class="flex justify-between mb-4">
+                        <button onclick="currentState = STATE.STEP_CHAPTER_SELECT; renderUI();" class="btn-secondary"><i class="fas fa-arrow-left mr-2"></i> Back to Chapters</button>
+                        <button onclick="fetchHadiths(true)" class="btn-secondary !bg-red-100 !text-red-600 hover:!bg-red-200"><i class="fas fa-redo mr-2"></i> Restart Page 1</button>
+                    </div>
+
+                    <div class="border-b pb-3 mb-4 text-sm text-slate-600 bg-emerald-50 p-3 rounded-lg">
+                        <p class="font-semibold text-emerald-800">Collection: ${bookNameDisplay}</p>
+                        <p class="font-semibold text-emerald-800">Chapter: ${chapterNameDisplay}</p>
+                    </div>
+                    
+                    <div id="hadith-results" class="space-y-8 max-h-[60vh] overflow-y-auto pr-2">
+                        ${currentHadithPage === 1 ? '<div class="text-center py-10"><i class="fas fa-spinner fa-spin text-3xl text-emerald-500"></i><p class="mt-2 text-slate-500">Loading Hadiths...</p></div>' : 'Loading...'}
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="loadMoreHadiths()" class="btn-primary disabled:opacity-50" id="load-more-btn"><i class="fas fa-arrow-down mr-2"></i> Load Next Page</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function fetchHadiths(isReload = false) {
+            const hadithContainer = document.getElementById('hadith-results');
+            const loadMoreButton = document.getElementById('load-more-btn');
+            
+            let page = isReload ? 1 : currentHadithPage + 1;
+            
+            const bookSlug = selectedBookSlug;
+            const chapterNum = selectedChapterNumber;
+            
+            const params = `book=${bookSlug}&chapter=${chapterNum}&page=${page}&paginate=5`; 
+            const proxyUrl = `${WORKER_URL}/hadiths?${params}`;
+
+            if (isReload) {
+                if (hadithContainer) hadithContainer.innerHTML = '<div class="text-center py-10"><i class="fas fa-spinner fa-spin text-3xl text-emerald-500"></i><p class="mt-2 text-slate-500">Loading first set of Hadiths...</p></div>';
+            }
+            if(loadMoreButton) loadMoreButton.disabled = true;
+
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const data = await response.json();
+                
+                if (!data.hadiths || !Array.isArray(data.hadiths.data)) {
+                    throw new Error("Data structure error: 'hadiths.data' not found.");
+                }
+
+                const hadiths = data.hadiths.data;
+                const pagination = data.hadiths;
+                
+                // Update pagination state trackers
+                currentHadithPage = pagination.current_page;
+                totalHadithPages = pagination.last_page;
+                
+                if (isReload) {
+                    hadithContainer.innerHTML = renderHadithCards(hadiths);
+                } else {
+                    hadithContainer.innerHTML += renderHadithCards(hadiths);
+                }
+                
+                if (pagination.next_page_url) {
+                    if(loadMoreButton) loadMoreButton.disabled = false;
+                    if(loadMoreButton) loadMoreButton.innerHTML = `<i class="fas fa-arrow-down mr-2"></i> Load Page ${currentHadithPage + 1}`;
+                    showToast(`Loaded Hadiths. Page ${currentHadithPage} of ${totalHadithPages}.`, "info");
+                } else {
+                    if(loadMoreButton) loadMoreButton.innerHTML = `<i class="fas fa-check-circle mr-2"></i> End of Hadiths`;
+                    if(loadMoreButton) loadMoreButton.disabled = true;
+                    showToast("Reached the end of Hadiths for this chapter.", "info");
+                }
+                
+                currentState = STATE.STEP_HADITH_VIEW; 
+                
+            } catch (error) {
+                showToast(`Hadith Fetch Error: ${error.message}`, "error");
+                if(loadMoreButton) loadMoreButton.disabled = false;
+                if (isReload && hadithContainer) hadithContainer.innerHTML = '<p class="text-center py-10 text-red-500">Error loading Hadiths. Check console.</p>';
+            }
+        }
+        
+        // Renders the individual hadith cards in the view state
+        function renderHadithCards(hadiths) {
+            return hadiths.map(hadith => {
+                const narratorHtml = hadith.englishNarrator ? `<p class="text-sm italic text-slate-600 border-b pb-2 mb-2">${hadith.englishNarrator}</p>` : '';
+                
+                return `
+                    <div class="p-5 bg-slate-50 rounded-lg shadow-md border-l-8 border-orange-400">
+                        <div class="flex justify-between text-xs font-semibold mb-3">
+                            <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">#${hadith.hadithNumber}</span>
+                            <span class="text-slate-500">Book/Ch: ${selectedBookSlug}/${selectedChapterNumber}</span>
+                        </div>
+                        
+                        ${narratorHtml}
+
+                        <!-- English Text -->
+                        <p class="text-md mb-3 text-slate-700">${hadith.hadithEnglish || 'English text not available.'}</p>
+                        
+                        <!-- Arabic Text -->
+                        ${hadith.hadithArabic ? `<p class="text-xl text-right font-serif text-slate-900 mt-3 border-t pt-3">${hadith.hadithArabic}</p>` : ''}
+                        
+                        <!-- Urdu Text (if present) -->
+                        ${hadith.hadithUrdu ? `<p class="text-sm text-right text-slate-700 mt-2 border-t pt-3">Urdu: ${hadith.hadithUrdu}</p>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function loadMoreHadiths() {
+            fetchHadiths(false); 
+        }
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"8d94ea1d617e4e40a584867065bfd8dd","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://quran.fakcloud.tech/#organization",
+      "name": "Noor Portal",
+      "url": "https://quran.fakcloud.tech/",
+      "logo": "https://quran.fakcloud.tech/logo.png"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://quran.fakcloud.tech/quran.html#webpage",
+      "url": "https://quran.fakcloud.tech/quran.html",
+      "name": "Read The Holy Quran (Al-Quran) Online",
+      "isPartOf": {"@id": "https://quran.fakcloud.tech/#website"},
+      "mainEntity": {
+        "@type": "Book",
+        "name": "The Holy Quran",
+        "alternateName": "Al-Quran",
+        "inLanguage": ["ar", "en", "ur"],
+        "format": "EBook",
+        "about": "Islamic scripture",
+        "publisher": {"@id": "https://quran.fakcloud.tech/#organization"},
+        "hasPart": [
+          {"@type": "CreativeWork", "name": "Quran Arabic Text"},
+          {"@type": "AudioObject", "name": "Quran Recitation", "encodingFormat": "audio/mpeg"}
+        ]
+      }
+    }
+  ]
+}
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noor Portal - Divine Quran Reader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%); }
+        .arabic-text { font-family: 'Amiri', serif; line-height: 2.5; direction: rtl; font-weight: 500; letter-spacing: 0.02em; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #059669; }
+
+        /* Glassmorphism & animations */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            transition: all 0.25s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+        
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%) scale(0.95); opacity: 0; }
+            to { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        .toast-enter { animation: slideIn 0.25s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards; }
+        
+        /* Verse Hover Effect */
+        .verse-card {
+            transition: all 0.2s ease;
+        }
+        .verse-card:hover {
+            background: #ffffff;
+            box-shadow: 0 12px 24px -12px rgba(0, 0, 0, 0.12);
+            border-left: 4px solid #10b981;
+        }
+        
+        /* Active Audio Wave */
+        @keyframes wave {
+            0%, 100% { transform: scaleY(0.6); opacity: 0.5; }
+            50% { transform: scaleY(1.2); opacity: 1; }
+        }
+        .audio-wave span {
+            display: inline-block;
+            width: 3px;
+            height: 12px;
+            background: #10b981;
+            margin: 0 2px;
+            border-radius: 2px;
+            animation: wave 0.8s infinite ease;
+        }
+        .audio-wave span:nth-child(2) { animation-delay: 0.1s; height: 18px; }
+        .audio-wave span:nth-child(3) { animation-delay: 0.2s; height: 14px; }
+        .audio-wave span:nth-child(4) { animation-delay: 0.3s; height: 10px; }
+        
+        /* shimmer effect for loading */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        /* Surah number badge */
+        .surah-badge {
+            background: linear-gradient(135deg, #10b98115 0%, #05966915 100%);
+        }
+        
+        /* Floating action glow */
+        .btn-glow:hover {
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col pb-28">
+
+<div id="navbar-placeholder"></div>
+
+    <!-- Mobile Menu Script -->
+    <script>
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const icon = document.getElementById('menu-icon');
+            menu.classList.toggle('hidden');
+            if (menu.classList.contains('hidden')) {
+                icon.classList.remove('fa-times');
+                icon.classList.add('fa-bars');
+            } else {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+            }
+        }
+    </script>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-24 right-6 z-[60] space-y-3"></div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-5 md:px-8 py-10 flex-grow max-w-7xl">
+
+        <!-- VIEW 1: Surah Index -->
+        <div id="view-index">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-5">
+                <div>
+                    <h1 class="text-4xl font-extrabold bg-gradient-to-r from-emerald-800 to-emerald-600 bg-clip-text text-transparent">📖 Noble Quran</h1>
+                    <p class="text-slate-500 mt-1 text-sm">114 Chapters · Divine Revelation · Guided Reading</p>
+                </div>
+                <div class="relative w-full md:w-80">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-emerald-400 text-sm"></i>
+                    <input type="text" id="search-box" onkeyup="filterSurahs()" placeholder="Search surah name or number..." 
+                        class="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition-all shadow-sm">
+                </div>
+            </div>
+
+            <div id="loader-index" class="text-center py-24">
+                <div class="inline-flex flex-col items-center gap-4">
+                    <div class="w-14 h-14 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+                    <p class="text-slate-500 font-medium">Loading divine chapters...</p>
+                </div>
+            </div>
+
+            <div id="surah-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 hidden"></div>
+        </div>
+
+        <!-- VIEW 2: Surah Reader (Enhanced) -->
+        <div id="view-reader" class="hidden">
+            <!-- Elegant Header -->
+            <div class="glass-card rounded-2xl p-5 mb-8 sticky top-5 z-40 shadow-lg backdrop-blur-md bg-white/95 border-l-8 border-emerald-500 flex flex-wrap justify-between items-center gap-4">
+                <button onclick="showIndex()" class="flex items-center gap-2 text-slate-600 hover:text-emerald-700 font-semibold transition px-3 py-2 rounded-xl hover:bg-emerald-50">
+                    <i class="fas fa-chevron-right text-sm"></i> <span>Library</span>
+                </button>
+                <div class="text-center">
+                    <h2 id="reader-title" class="text-2xl font-bold text-emerald-900 tracking-tight">Surah Name</h2>
+                    <p id="reader-info" class="text-xs text-slate-400 mt-0.5 uppercase tracking-wider">Revelation · Verses</p>
+                </div>
+                <button onclick="playFullSurah()" class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm transition-all shadow-md flex items-center gap-2 btn-glow">
+                    <i class="fas fa-headphones text-xs"></i> <span>Play Full Surah</span>
+                </button>
+            </div>
+
+            <!-- Bismillah Elegant -->
+            <div class="text-center mb-12 relative">
+                <div class="absolute left-1/2 -translate-x-1/2 w-24 h-0.5 bg-gradient-to-r from-transparent via-emerald-300 to-transparent top-1/2 -translate-y-1/2"></div>
+                <p class="arabic-text text-4xl md:text-5xl text-emerald-800 bg-white/50 inline-block px-8 py-4 rounded-3xl shadow-sm border border-emerald-100">بِسْمِ ٱللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ</p>
+            </div>
+
+            <!-- Verses List -->
+            <div id="verses-container" class="space-y-5 max-w-4xl mx-auto"></div>
+            
+            <!-- subtle spacer -->
+            <div class="h-10"></div>
+        </div>
+
+    </main>
+
+    <!-- Sticky Audio Player (Modern) -->
+    <div id="sticky-player" class="fixed bottom-5 left-5 right-5 md:left-auto md:right-6 md:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-emerald-100/60 p-4 transform translate-y-[120%] transition-all duration-400 z-50 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 flex-1">
+            <button onclick="toggleAudio()" id="main-play-btn" class="w-11 h-11 bg-emerald-600 text-white rounded-full flex items-center justify-center text-lg hover:bg-emerald-700 shadow-md transition-all active:scale-95">
+                <i class="fas fa-pause"></i>
+            </button>
+            <div class="flex-1">
+                <p class="text-sm font-bold text-emerald-900 truncate" id="player-status">Surah Al-Fatiha</p>
+                <div class="flex items-center gap-2">
+                    <p class="text-[11px] text-slate-400">Mishary Alafasy</p>
+                    <div class="audio-wave hidden md:flex" id="wave-indicator">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button onclick="closePlayer()" class="text-slate-400 hover:text-rose-500 transition text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-50">
+            <i class="fas fa-times"></i>
+        </button>
+        <audio id="global-audio" preload="metadata"></audio>
+    </div>
+
+<script src="navbar.js"></script>
+    <script>
+        const API_BASE = 'https://quran-api.fakcloud.tech';
+        let allSurahs = [];
+        let currentSurahId = null;
+        let currentAudioSrc = null;
+
+        // --- Enhanced Toast Notification ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = type === 'error' ? 'bg-gradient-to-r from-rose-500 to-rose-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600';
+            const icon = type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check';
+            toast.className = `${colors} text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3 toast-enter pointer-events-auto backdrop-blur-sm`;
+            toast.innerHTML = `<i class="fas ${icon} text-lg"></i> <span class="font-medium text-sm">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // --- Load Surah List ---
+        document.addEventListener('DOMContentLoaded', loadSurahList);
+
+        async function loadSurahList() {
+            try {
+                const res = await fetch(`${API_BASE}/v1/surah`);
+                const data = await res.json();
+                if(data.code === 200) {
+                    allSurahs = data.data;
+                    renderGrid(allSurahs);
+                    document.getElementById('loader-index').classList.add('hidden');
+                    document.getElementById('surah-grid').classList.remove('hidden');
+                } else throw new Error();
+            } catch (err) {
+                showToast("Unable to connect to Quran API", "error");
+                document.getElementById('loader-index').innerHTML = '<div class="text-red-500 bg-red-50 p-6 rounded-2xl"><i class="fas fa-exclamation-triangle mr-2"></i> Failed to load Surahs. Please refresh.</div>';
+            }
+        }
+
+        function renderGrid(surahs) {
+            const grid = document.getElementById('surah-grid');
+            if(!surahs.length) {
+                grid.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400"><i class="fas fa-search text-4xl mb-2"></i><p>No matching surahs found</p></div>`;
+                return;
+            }
+            grid.innerHTML = surahs.map(surah => `
+                <div onclick="loadSurah(${surah.number})" class="glass-card bg-white rounded-2xl p-5 cursor-pointer group transition-all duration-200">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="surah-badge w-11 h-11 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-700 font-bold text-lg shadow-inner">${surah.number}</div>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg group-hover:text-emerald-700 transition">${surah.englishName}</h3>
+                                <p class="text-xs text-slate-400 capitalize">${surah.revelationType || 'Meccan'} · ${surah.numberOfAyahs} verses</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="arabic-text text-2xl text-emerald-700 leading-tight">${surah.name.replace('سُورَةُ ', '')}</p>
+                            <p class="text-[11px] text-slate-400 mt-1">${surah.englishNameTranslation.split(' ').slice(0,2).join(' ')}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterSurahs() {
+            const query = document.getElementById('search-box').value.toLowerCase().trim();
+            if(!allSurahs.length) return;
+            const filtered = allSurahs.filter(s => 
+                s.englishName.toLowerCase().includes(query) || 
+                s.name.toLowerCase().includes(query) ||
+                s.number.toString() === query ||
+                (s.englishNameTranslation && s.englishNameTranslation.toLowerCase().includes(query))
+            );
+            renderGrid(filtered);
+        }
+
+        // --- Load Surah with improved performance ---
+        async function loadSurah(number) {
+            currentSurahId = number;
+            document.getElementById('view-index').classList.add('hidden');
+            document.getElementById('view-reader').classList.remove('hidden');
+            const container = document.getElementById('verses-container');
+            container.innerHTML = `<div class="flex justify-center py-28"><div class="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div></div>`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            try {
+                const url = `${API_BASE}/v1/surah/${number}/editions/quran-uthmani,en.asad`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if(data.code === 200) {
+                    const arabicData = data.data[0];
+                    const englishData = data.data[1];
+                    document.getElementById('reader-title').innerText = arabicData.englishName;
+                    document.getElementById('reader-info').innerHTML = `<i class="fas fa-map-marker-alt text-emerald-500 mr-1 text-xs"></i> ${arabicData.revelationType || 'Meccan'} · ${arabicData.numberOfAyahs} Ayahs`;
+                    
+                    let html = '';
+                    arabicData.ayahs.forEach((ayah, idx) => {
+                        let arText = ayah.text;
+                        const isFirstVerse = (idx === 0);
+                        const isNotFatiha = (number !== 1);
+                        if(isNotFatiha && isFirstVerse) {
+                            arText = arText.replace("بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", "").trim();
+                            if(arText === "") arText = ayah.text; // fallback
+                        }
+                        const engText = englishData.ayahs[idx]?.text || "Translation not available";
+                        const verseNum = ayah.numberInSurah;
+                        html += `
+                            <div class="verse-card bg-white/80 rounded-2xl p-6 transition-all border border-slate-100 hover:border-emerald-200 shadow-sm">
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="flex items-center gap-2">
+                                        <span class="bg-emerald-50 text-emerald-700 text-xs font-mono font-semibold px-3 py-1.5 rounded-full">${verseNum}</span>
+                                    </div>
+                                    <button onclick="playVerseAudio(${number}, ${verseNum})" class="text-slate-400 hover:text-emerald-600 transition p-2 rounded-full hover:bg-emerald-50" title="Recite verse">
+                                        <i class="fas fa-head-side-headphones text-md"></i>
+                                    </button>
+                                </div>
+                                <p class="arabic-text text-3xl md:text-4xl text-right text-slate-800 mb-6 leading-[2.2] tracking-wide">
+                                    ${arText || ayah.text}
+                                    <span class="text-emerald-400 text-2xl font-serif mr-2">۝</span>
+                                </p>
+                                <div class="border-t border-emerald-50 pt-4">
+                                    <p class="text-md text-slate-600 leading-relaxed font-light tracking-wide">${engText}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else throw new Error();
+            } catch (err) {
+                showToast("Error loading surah content", "error");
+                container.innerHTML = `<div class="text-center py-20 text-rose-500 bg-rose-50 rounded-2xl"><i class="fas fa-exclamation-circle text-2xl"></i><p class="mt-2">Failed to load verses. Please try again.</p></div>`;
+            }
+        }
+
+        function showIndex() {
+            document.getElementById('view-reader').classList.add('hidden');
+            document.getElementById('view-index').classList.remove('hidden');
+            closePlayer();
+        }
+
+        // --- AUDIO LOGIC (Enhanced with state)---
+        const audioEl = document.getElementById('global-audio');
+        const playerBar = document.getElementById('sticky-player');
+        const playBtnIcon = document.querySelector('#main-play-btn i');
+        const waveIndicator = document.getElementById('wave-indicator');
+
+        function updateWaveVisibility() {
+            if (!audioEl.paused && audioEl.currentTime > 0 && !audioEl.ended) {
+                waveIndicator?.classList.remove('hidden');
+            } else {
+                waveIndicator?.classList.add('hidden');
+            }
+        }
+
+        function playFullSurah() {
+            if(!currentSurahId) {
+                showToast("Open a surah first", "error");
+                return;
+            }
+            const paddedId = String(currentSurahId).padStart(3, '0');
+            const titleText = document.getElementById('reader-title')?.innerText || `Surah ${currentSurahId}`;
+            const url = `https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/${paddedId}.mp3`;
+            startAudio(url, `✨ ${titleText} (Full Recitation)`);
+        }
+
+        async function playVerseAudio(surahNum, verseNum) {
+            showToast("Loading blessed verse audio...");
+            try {
+                const res = await fetch(`${API_BASE}/v1/ayah/${surahNum}:${verseNum}/ar.alafasy`);
+                const data = await res.json();
+                if(data.code === 200 && data.data?.audio) {
+                    startAudio(data.data.audio, `🎵 Surah ${surahNum}:${verseNum}`);
+                } else {
+                    showToast("Audio not available for this verse", "error");
+                }
+            } catch (err) {
+                showToast("Network error fetching audio", "error");
+            }
+        }
+
+        function startAudio(url, title) {
+            if(currentAudioSrc !== url) {
+                audioEl.src = url;
+                currentAudioSrc = url;
+            }
+            audioEl.play().then(() => {
+                playerBar.classList.remove('translate-y-[120%]');
+                document.getElementById('player-status').innerText = title.length > 35 ? title.slice(0,32)+'...' : title;
+                playBtnIcon.className = "fas fa-pause";
+                updateWaveVisibility();
+                showToast("🎧 Now playing: " + title.replace(/✨|🎵/g,'').trim(), "success");
+            }).catch(err => {
+                console.warn(err);
+                showToast("Playback failed. Try again.", "error");
+                playBtnIcon.className = "fas fa-play";
+                updateWaveVisibility();
+            });
+        }
+
+        function toggleAudio() {
+            if(audioEl.paused) {
+                audioEl.play();
+                playBtnIcon.className = "fas fa-pause";
+                updateWaveVisibility();
+            } else {
+                audioEl.pause();
+                playBtnIcon.className = "fas fa-play";
+                updateWaveVisibility();
+            }
+        }
+
+        function closePlayer() {
+            audioEl.pause();
+            audioEl.currentTime = 0;
+            playerBar.classList.add('translate-y-[120%]');
+            playBtnIcon.className = "fas fa-play";
+            updateWaveVisibility();
+            currentAudioSrc = null;
+        }
+
+        audioEl.onplay = () => {
+            playBtnIcon.className = "fas fa-pause";
+            updateWaveVisibility();
+        };
+        audioEl.onpause = () => {
+            playBtnIcon.className = "fas fa-play";
+            updateWaveVisibility();
+        };
+        audioEl.onended = () => {
+            playBtnIcon.className = "fas fa-play";
+            updateWaveVisibility();
+            showToast("Recitation completed · Barakallah", "success");
+        };
+        audioEl.onerror = () => {
+            showToast("Audio stream error", "error");
+            closePlayer();
+        };
+        
+        // extra: remove wave if hidden on error
+        setInterval(updateWaveVisibility, 500);
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8gg==" data-cf-beacon='{"version":"2024.11.0","token":"8d94ea1d617e4e40a584867065bfd8dd","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

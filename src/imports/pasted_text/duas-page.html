@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://quran.fakcloud.tech/#organization",
+      "name": "Islamic Portal",
+      "url": "https://quran.fakcloud.tech/",
+      "logo": "https://quran.fakcloud.tech/logo.png"
+    },
+    {
+      "@type": "CollectionPage",
+      "@id": "https://quran.fakcloud.tech/duas.html#webpage",
+      "url": "https://quran.fakcloud.tech/duas.html",
+      "name": "Authentic Daily Duas Collection",
+      "description": "Collection of daily Duas including morning, evening, entering home, leaving home, Ramadan Duas and more.",
+      "isPartOf": {"@id": "https://quran.fakcloud.tech/#website"},
+      "publisher": {"@id": "https://quran.fakcloud.tech/#organization"}
+    }
+  ]
+}
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamic Portal - Duas & Supplications</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .arabic { font-family: 'Amiri', serif; line-height: 3.5rem; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #059669; border-radius: 4px; }
+
+        /* Unified Component Styles */
+        .card-bg {
+            @apply bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all duration-300;
+        }
+        .category-card:hover {
+            @apply transform -translate-y-1 shadow-xl border-emerald-400 bg-emerald-50;
+        }
+        .search-highlight { @apply bg-yellow-100 font-bold; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col pb-24">
+
+ <div id="navbar-placeholder"></div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 flex-grow">
+        <div class="max-w-4xl mx-auto">
+            
+            <div class="text-center mb-10" id="page-header">
+                <h1 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Supplications</h1>
+                <p class="text-slate-500 text-lg">Powerful search through 385+ authentic Duas.</p>
+            </div>
+
+            <!-- Powerful Search Bar -->
+            <div class="mb-8 relative group">
+                <div class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
+                    <i class="fas fa-search text-xl"></i>
+                </div>
+                <input type="text" id="searchInput" 
+                    placeholder="Search keywords (e.g. travel, protection, morning)..." 
+                    class="w-full p-5 pl-14 rounded-2xl border-none shadow-md focus:ring-4 focus:ring-emerald-500/20 outline-none text-lg transition-all">
+                <div id="searchBadge" class="absolute right-5 top-1/2 -translate-y-1/2 hidden">
+                    <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1 rounded-lg">SEARCH MODE</span>
+                </div>
+            </div>
+
+            <!-- UI State Controllers -->
+            <div id="backBtnContainer" class="mb-6 hidden">
+                <button onclick="clearSearch()" class="flex items-center gap-2 text-emerald-700 font-bold hover:gap-4 transition-all">
+                    <i class="fas fa-arrow-left"></i> Back to Categories
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading" class="flex flex-col items-center justify-center py-20 hidden">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-emerald-600 mb-4"></div>
+                <p class="text-emerald-600 font-medium">Connecting to API...</p>
+            </div>
+
+            <!-- Content Area -->
+            <div id="categoryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Categories load here -->
+            </div>
+
+            <div id="duaList" class="space-y-6 hidden">
+                <!-- Duas load here -->
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Toast UI -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 transition-opacity pointer-events-none z-[100]">
+        Copied to clipboard!
+    </div>
+<script src="navbar.js"></script>
+    <script>
+        const API_BASE = "https://dus-api.fakcloud.tech";
+        let allCategories = [];
+        let searchTimeout;
+
+        // Initialize: Fetch Categories
+        async function init() {
+            setLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/categories`);
+                allCategories = await res.json();
+                renderCategories(allCategories);
+            } catch (err) {
+                console.error("API Error:", err);
+            }
+            setLoading(false);
+        }
+
+        // Render Category Grid
+        function renderCategories(list) {
+            const grid = document.getElementById('categoryGrid');
+            grid.classList.remove('hidden');
+            grid.innerHTML = list.map(cat => `
+                <div class="card-bg category-card cursor-pointer" onclick="loadCategory('${cat}')">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-slate-700">${cat}</h3>
+                        <div class="h-10 w-10 flex items-center justify-center bg-emerald-100 text-emerald-600 rounded-xl">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load Specific Category
+        async function loadCategory(name) {
+            setLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/category?name=${encodeURIComponent(name)}`);
+                const duas = await res.json();
+                displayDuas(duas, name);
+            } catch (err) {
+                alert("Failed to load category.");
+            }
+            setLoading(false);
+        }
+
+        // Powerful Search Implementation
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            clearTimeout(searchTimeout);
+            if (query.length < 2) {
+                if (query.length === 0) clearSearch();
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                setLoading(true);
+                document.getElementById('searchBadge').classList.remove('hidden');
+                try {
+                    const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                    const results = await res.json();
+                    displayDuas(results, `Search Results for "${query}"`);
+                } catch (err) {
+                    console.error(err);
+                }
+                setLoading(false);
+            }, 300);
+        });
+
+        // Display Duas (Unified for Search and Category)
+        function displayDuas(duas, title) {
+            const grid = document.getElementById('categoryGrid');
+            const list = document.getElementById('duaList');
+            const backBtn = document.getElementById('backBtnContainer');
+            
+            grid.classList.add('hidden');
+            list.classList.remove('hidden');
+            backBtn.classList.remove('hidden');
+
+            list.innerHTML = `<h2 class="text-2xl font-black text-emerald-900 mb-6 flex items-center gap-3">
+                <span class="w-2 h-8 bg-emerald-500 rounded-full"></span> ${title}
+            </h2>`;
+
+            if (duas.length === 0) {
+                list.innerHTML += `<div class="text-center py-10 text-slate-400">No matching Duas found.</div>`;
+            }
+
+            list.innerHTML += duas.map(dua => `
+                <div class="card-bg relative group">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-2 py-1 rounded">
+                            ${dua.category || 'Masnoon'}
+                        </span>
+                        <button onclick="copyDua(this)" data-arabic="${dua.arabic}" data-trans="${dua.translation}" 
+                            class="text-slate-300 hover:text-emerald-600 transition-colors">
+                            <i class="far fa-copy text-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <p class="arabic text-3xl text-right mb-8 text-slate-900" dir="rtl">${dua.arabic}</p>
+                    
+                    <div class="pt-5 border-t border-slate-100">
+                        <p class="text-slate-600 leading-relaxed italic text-lg mb-4">"${dua.translation}"</p>
+                        
+                        <div class="flex items-center gap-2 text-emerald-600 font-bold text-xs">
+                            <i class="fas fa-quote-left opacity-20"></i>
+                            <span>${dua.reference}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Helper: Clear Search and Reset UI
+        function clearSearch() {
+            document.getElementById('searchInput').value = "";
+            document.getElementById('searchBadge').classList.add('hidden');
+            document.getElementById('duaList').classList.add('hidden');
+            document.getElementById('backBtnContainer').classList.add('hidden');
+            document.getElementById('categoryGrid').classList.remove('hidden');
+            renderCategories(allCategories);
+        }
+
+        // Helper: Copy Function
+        function copyDua(btn) {
+            const text = `${btn.dataset.arabic}\n\nTranslation: ${btn.dataset.trans}`;
+            navigator.clipboard.writeText(text);
+            
+            const toast = document.getElementById('toast');
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2000);
+        }
+
+        function setLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        init();
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"8d94ea1d617e4e40a584867065bfd8dd","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
